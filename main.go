@@ -12,6 +12,7 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"main/internal/helpproc"
 	"main/internal/makeexec"
 )
 
@@ -21,6 +22,8 @@ var (
 	timeout       int
 	maxConcurrent int64
 	debug         bool
+	enableHelp    bool
+	helpPreamble  string
 )
 
 func init() {
@@ -29,6 +32,8 @@ func init() {
 	flag.IntVar(&timeout, "timeout", 120, "Timeout for make execution in seconds")
 	flag.Int64Var(&maxConcurrent, "max-concurrent", 4, "Maximum number of concurrent make executions")
 	flag.BoolVar(&debug, "debug", false, "Enable debug logging")
+	flag.BoolVar(&enableHelp, "enable-help", false, "Enable make_help tool")
+	flag.StringVar(&helpPreamble, "help-preamble", "", "Preamble text to prepend to make_help output")
 	flag.Parse()
 }
 
@@ -82,6 +87,16 @@ func main() {
 		return handleMakeTool(ctx, request, executor)
 	})
 
+	// make_helpツールの登録 (enable-helpが有効な場合のみ)
+	if enableHelp {
+		helpTool := mcp.NewTool("make_help",
+			mcp.WithDescription("Display help from the Makefile's help target"),
+		)
+		s.AddTool(helpTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			return handleMakeHelpTool(ctx, executor, helpPreamble)
+		})
+	}
+
 	log.Info().
 		Str("make-path", makePath).
 		Str("workdir", workdir).
@@ -98,12 +113,12 @@ func main() {
 
 // handleMakeTool はmakeツールのリクエストを処理するハンドラ関数
 func handleMakeTool(ctx context.Context, request mcp.CallToolRequest, executor *makeexec.Executor) (*mcp.CallToolResult, error) {
-	log.Debug().Interface("args", request.Params.Arguments).Msg("Make tool called")
+	log.Debug().Interface("args", request.GetArguments()).Msg("Make tool called")
 
 	// パラメータの取得
-	target, _ := request.Params.Arguments["target"].(string)
-	file, _ := request.Params.Arguments["file"].(string)
-	workDir, _ := request.Params.Arguments["workdir"].(string)
+	target := request.GetString("target", "")
+	file := request.GetString("file", "")
+	workDir := request.GetString("workdir", "")
 
 	// パラメータの検証
 	if target == "" {
@@ -131,4 +146,29 @@ func handleMakeTool(ctx context.Context, request mcp.CallToolRequest, executor *
 	}
 
 	return mcp.NewToolResultText(jsonResult), nil
+}
+
+// handleMakeHelpTool はmake_helpツールのリクエストを処理するハンドラ関数
+func handleMakeHelpTool(ctx context.Context, executor *makeexec.Executor, preamble string) (*mcp.CallToolResult, error) {
+	log.Debug().Msg("Make help tool called")
+
+	// パラメータをMakeParamsに変換 (help target)
+	params := makeexec.MakeParams{
+		Target: "help",
+	}
+
+	// Makefileの実行
+	result, err := executor.Execute(ctx, params)
+	if err != nil {
+		log.Error().Err(err).Msg("Make help execution failed")
+		// エラーが発生しても結果は返す
+	}
+
+	// 出力の処理: Notes以降を削除
+	output := helpproc.ProcessHelpOutput(result.Stdout)
+
+	// プリアンブルの追加
+	formattedPreamble := helpproc.FormatHelpPreamble(preamble)
+
+	return mcp.NewToolResultText(formattedPreamble + output), nil
 }
