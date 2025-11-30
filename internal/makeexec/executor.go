@@ -93,6 +93,9 @@ func (e *Executor) Execute(ctx context.Context, params MakeParams) (*Result, err
 	cmd := exec.CommandContext(timeoutCtx, e.MakePath, args...)
 	cmd.Dir = workDir
 
+	// 標準入力を無効化 (nil = os.DevNull equivalent, cross-platform)
+	cmd.Stdin = nil
+
 	// 標準出力と標準エラー出力のキャプチャ
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
