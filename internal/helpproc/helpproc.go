@@ -10,6 +10,9 @@ var NotesRegex = regexp.MustCompile(`^Notes$`)
 
 // ProcessHelpOutput strips everything after a line matching ^Notes$ (inclusive)
 func ProcessHelpOutput(output string) string {
+	// Normalize CRLF to LF to ensure regex matching works on Windows output
+	output = strings.ReplaceAll(output, "\r\n", "\n")
+
 	lines := strings.Split(output, "\n")
 	var result []string
 	for _, line := range lines {

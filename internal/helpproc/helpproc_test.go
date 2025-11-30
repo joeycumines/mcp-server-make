@@ -46,7 +46,7 @@ func TestProcessHelpOutput(t *testing.T) {
 			expected: "",
 		},
 		{
-			name:     "complex example from requirements",
+			name: "complex example from requirements",
 			input: `
 Usage:
   gmake <target>
