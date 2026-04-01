@@ -26,3 +26,8 @@ go.work.sum
 
 # Binary
 mcp-server-make
+
+# misc ignores
+/.agents
+/.claude/skills
+/.claude/*.local.*
