@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -88,10 +89,10 @@ func main() {
 	})
 
 	// make_helpツールの登録 (enable-helpが有効な場合のみ)
+	// Use raw schema to add additionalProperties: false per MCP spec for tools with no params
 	if enableHelp {
-		helpTool := mcp.NewTool("make_help",
-			mcp.WithDescription("Display help from the Makefile's help target"),
-		)
+		helpSchema := json.RawMessage(`{"type":"object","properties":{},"additionalProperties":false}`)
+		helpTool := mcp.NewToolWithRawSchema("make_help", "Display help from the Makefile's help target", helpSchema)
 		s.AddTool(helpTool, func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 			return handleMakeHelpTool(ctx, executor, helpPreamble)
 		})
